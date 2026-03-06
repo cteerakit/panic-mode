@@ -10,11 +10,13 @@
 
 -   **⌨️ Global Hotkey**: Register a custom key combination (Default: `Ctrl + Q`) to toggle window visibility from anywhere in Windows.
 -   **🕵️ Hidden Activity**: Instantly minimizes all top-level application windows.
--   **🔗 Panic URL**: Automatically opens a "safe" URL (e.g., Google, a news site, or a work dashboard) when activated.
--   **🖱️ Tray-Based Interface**: Runs silently in the background via the system tray.
+-   **� Audio Panic**: Automatically mutes system audio when activated and restores your previous volume state when toggled off.
+-   **�🔗 Panic URL**: Automatically opens a "safe" URL (e.g., Google or a work dashboard) when activated.
+-   **� Maximize Focus**: Option to automatically maximize the browser window when the Panic URL is opened.
+-   **🎨 Modern UI**: Beautifully redesigned settings window with support for system-wide Light and Dark themes.
+-   **�🖱️ Tray-Based Interface**: Runs silently in the background via the system tray with a streamlined context menu.
 -   **⚡ Rapid-Press Trigger**: Configure the number of rapid presses required to trigger the toggle (e.g., press `Ctrl+Q` three times quickly to hide).
 -   **🏠 Run at Startup**: Optional setting to launch automatically with Windows.
--   **🛠️ Customizable Settings**: Tailor the hotkey, modifier keys, and trigger window duration through an easy-to-use interface.
 
 ## 🛠️ Requirements
 
@@ -44,11 +46,12 @@ If available, download and run the `PanicMode-Setup.exe` from the [releases](htt
 ## 🎮 Usage
 
 1.  **Launch PanicMode**: Once running, the application will appear in your system tray.
-2.  **Toggle Windows**: Press the hotkey (Default: `Ctrl + Q`) to hide all active windows. Press it again to restore them.
+2.  **Toggle Windows**: Press the hotkey (Default: `Ctrl + Q`) to hide all active windows and mute audio. Press it again to restore them.
 3.  **Settings**: Double-click the tray icon or right-click and select **Settings** to customize:
     -   Hotkey & Modifier Keys
     -   Required trigger count (for rapid-press)
-    -   Panic URL (the page to open when triggered)
+    -   Panic URL and Maximize behavior
+    -   Startup preferences
 
 ## 📦 Building an Installer
 The project includes an Inno Setup script (`installer.iss`). To generate the installer:
@@ -64,11 +67,12 @@ The project includes an Inno Setup script (`installer.iss`). To generate the ins
 ## 🔒 Technical Details
 
 -   **Language**: C# 13 / .NET 10.0
--   **Framework**: Windows Forms (WinForms)
+-   **Framework**: Windows Forms (WinForms) with DWM integration for modern aesthetics.
 -   **Win32 APIs**:
     -   `RegisterHotKey` for global hotkey capturing.
     -   `EnumWindows` and `ShowWindow` for window manipulation.
-    -   `NativeWindow` subclassing for hidden message handling.
+    -   `DwmSetWindowAttribute` for immersive dark mode support.
+    -   `NAudio` for system-level audio endpoint management.
 -   **Persistence**: Settings are stored in `%AppData%\PanicMode\settings.json`.
 
 ---
