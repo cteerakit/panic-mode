@@ -1,5 +1,5 @@
 #define MyAppName "PanicMode"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppPublisher "PanicMode"
 #define MyAppExeName "PanicMode.exe"
 #define MyAppExePath "bin\Release\net10.0-windows\win-x64\publish\PanicMode.exe"
