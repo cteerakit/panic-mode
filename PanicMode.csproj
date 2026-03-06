@@ -17,4 +17,9 @@
     <EmbeddedResource Include="Resources\icon.ico" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="NAudio.Core" Version="2.2.1" />
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+  </ItemGroup>
+
 </Project>

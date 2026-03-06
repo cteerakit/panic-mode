@@ -33,6 +33,9 @@ public sealed class WindowManager
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
+
     private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
     private const int SW_MINIMIZE   = 6;
@@ -67,6 +70,17 @@ public sealed class WindowManager
             if (!IsWindowVisible(hWnd))         return true;
             if (hWnd == shellWindow)            return true;
             if (GetWindowTextLength(hWnd) == 0) return true;
+
+            var className = new StringBuilder(256);
+            GetClassName(hWnd, className, className.Capacity);
+            string cls = className.ToString();
+            
+            // Skip critical OS components
+            if (cls == "Shell_TrayWnd" || cls == "TrayNotifyWnd" || cls == "SysPager" || 
+                cls == "Progman" || cls == "WorkerW" || cls == "Windows.UI.Core.CoreWindow" ||
+                cls == "NotifyIconOverflowWindow" || cls == "TopLevelWindowForOverflowTray" ||
+                cls == "XamlExplorerHostIslandWindow" || cls == "ControlCenterWindow")
+                return true;
 
             GetWindowThreadProcessId(hWnd, out uint pid);
             if (pid == ownPid)                  return true;

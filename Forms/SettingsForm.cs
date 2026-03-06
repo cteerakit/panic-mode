@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+using Microsoft.Win32;
 using PanicMode.Models;
 
 namespace PanicMode.Forms;
@@ -7,11 +9,11 @@ namespace PanicMode.Forms;
 /// </summary>
 public sealed class SettingsForm : Form
 {
-    // ── UI controls ────────────────────────────────────────────────────────
-    private readonly Panel         _headerPanel;
-    private readonly Label         _titleLabel;
-    private readonly Label         _subtitleLabel;
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+    private const int DWMWA_USE_IMMERSIVE_DARK_MODE_V2 = 20;
 
+    // ── UI controls ────────────────────────────────────────────────────────
     private readonly GroupBox      _hotkeyGroup;
     private readonly Label         _hotkeyLabel;
     private readonly TextBox       _hotkeyBox;
@@ -27,6 +29,7 @@ public sealed class SettingsForm : Form
     private readonly NumericUpDown _pressWindowNum;
     private readonly Label         _panicUrlLabel;
     private readonly TextBox       _panicUrlBox;
+    private readonly CheckBox      _maximizeCheck;
 
     private readonly CheckBox      _startupCheck;
 
@@ -38,9 +41,22 @@ public sealed class SettingsForm : Form
     private readonly AppSettings _original;
     public AppSettings? ResultSettings { get; private set; }
 
+    private bool _isDarkTheme;
+
     public SettingsForm(AppSettings current)
     {
         _original = current;
+        _isDarkTheme = IsDarkTheme();
+
+        // Color palettes
+        Color bg = _isDarkTheme ? Color.FromArgb(30, 30, 30) : Color.FromArgb(243, 243, 243);
+        Color fg = _isDarkTheme ? Color.WhiteSmoke : Color.FromArgb(20, 20, 20);
+        Color headerBg = _isDarkTheme ? Color.FromArgb(20, 20, 20) : Color.FromArgb(225, 225, 225);
+        Color accent = _isDarkTheme ? Color.FromArgb(100, 210, 255) : Color.FromArgb(0, 102, 204);
+        Color subText = _isDarkTheme ? Color.FromArgb(170, 170, 180) : Color.FromArgb(80, 80, 90);
+        Color inputBg = _isDarkTheme ? Color.FromArgb(45, 45, 48) : Color.White;
+        Color inputFg = _isDarkTheme ? Color.WhiteSmoke : Color.Black;
+        Color btnBg = _isDarkTheme ? Color.FromArgb(45, 45, 48) : Color.FromArgb(220, 220, 220);
 
         // ── Form setup ────────────────────────────────────────────────────
         Text             = "PanicMode Settings";
@@ -48,51 +64,23 @@ public sealed class SettingsForm : Form
         MaximizeBox      = false;
         MinimizeBox      = false;
         StartPosition    = FormStartPosition.CenterScreen;
-        Size             = new Size(380, 430);
-        BackColor        = Color.FromArgb(30, 30, 30);
-        ForeColor        = Color.WhiteSmoke;
+        Size             = new Size(380, 390);
+        BackColor        = bg;
+        ForeColor        = fg;
         Font             = new Font("Segoe UI", 9f);
 
-        // ── Header ────────────────────────────────────────────────────────
-        _headerPanel = new Panel
-        {
-            Dock      = DockStyle.Top,
-            Height    = 70,
-            BackColor = Color.FromArgb(20, 20, 20)
-        };
-
-        _titleLabel = new Label
-        {
-            Text      = "⚡ PanicMode",
-            ForeColor = Color.FromArgb(100, 210, 255),
-            Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
-            Location  = new Point(14, 10),
-            AutoSize  = true
-        };
-
-        _subtitleLabel = new Label
-        {
-            Text      = "Configure your global panic hotkey",
-            ForeColor = Color.FromArgb(150, 150, 160),
-            Font      = new Font("Segoe UI", 8.5f),
-            Location  = new Point(16, 42),
-            AutoSize  = true
-        };
-
-        _headerPanel.Controls.AddRange([_titleLabel, _subtitleLabel]);
-
         // ── Hotkey group ─────────────────────────────────────────────────
-        _hotkeyGroup = MakeGroup("Hotkey", 90, 95);
+        _hotkeyGroup = MakeGroup("Hotkey", 20, 95, accent, bg);
 
-        _ctrlCheck  = MakeModCheck("Ctrl",  10, 25);
-        _altCheck   = MakeModCheck("Alt",   70, 25);
-        _shiftCheck = MakeModCheck("Shift", 130, 25);
-        _winCheck   = MakeModCheck("Win",   200, 25);
+        _ctrlCheck  = MakeModCheck("Ctrl",  10, 25, fg);
+        _altCheck   = MakeModCheck("Alt",   70, 25, fg);
+        _shiftCheck = MakeModCheck("Shift", 130, 25, fg);
+        _winCheck   = MakeModCheck("Win",   200, 25, fg);
 
         _hotkeyLabel = new Label
         {
             Text      = "Key:",
-            ForeColor = Color.FromArgb(170, 170, 180),
+            ForeColor = subText,
             Location  = new Point(10, 57),
             AutoSize  = true
         };
@@ -102,8 +90,8 @@ public sealed class SettingsForm : Form
             Location    = new Point(42, 53),
             Size        = new Size(90, 23),
             ReadOnly    = true,
-            BackColor   = Color.FromArgb(45, 45, 48),
-            ForeColor   = Color.WhiteSmoke,
+            BackColor   = inputBg,
+            ForeColor   = inputFg,
             BorderStyle = BorderStyle.FixedSingle,
             Cursor      = Cursors.Arrow,
             TabStop     = false
@@ -115,12 +103,12 @@ public sealed class SettingsForm : Form
                                         _hotkeyLabel, _hotkeyBox]);
 
         // ── Behavior group ────────────────────────────────────────────────
-        _behaviorGroup = MakeGroup("Behavior", 195, 125);
+        _behaviorGroup = MakeGroup("Behavior", 125, 155, accent, bg);
 
         _pressCountLabel = new Label
         {
             Text     = "Required press count:",
-            ForeColor = Color.FromArgb(170, 170, 180),
+            ForeColor = subText,
             Location  = new Point(10, 25),
             AutoSize  = true
         };
@@ -132,15 +120,15 @@ public sealed class SettingsForm : Form
             Minimum    = 1,
             Maximum    = 5,
             Value      = Math.Clamp(current.RequiredPressCount, 1, 5),
-            BackColor  = Color.FromArgb(45, 45, 48),
-            ForeColor  = Color.WhiteSmoke,
+            BackColor  = inputBg,
+            ForeColor  = inputFg,
             BorderStyle = BorderStyle.FixedSingle
         };
 
         _pressWindowLabel = new Label
         {
             Text      = "Press window (ms):",
-            ForeColor = Color.FromArgb(170, 170, 180),
+            ForeColor = subText,
             Location  = new Point(10, 58),
             AutoSize  = true
         };
@@ -153,15 +141,15 @@ public sealed class SettingsForm : Form
             Maximum    = 2000,
             Increment  = 100,
             Value      = Math.Clamp(current.PressWindowMs, 100, 2000),
-            BackColor  = Color.FromArgb(45, 45, 48),
-            ForeColor  = Color.WhiteSmoke,
+            BackColor  = inputBg,
+            ForeColor  = inputFg,
             BorderStyle = BorderStyle.FixedSingle
         };
 
         _panicUrlLabel = new Label
         {
             Text      = "Open URL on Panic:",
-            ForeColor = Color.FromArgb(170, 170, 180),
+            ForeColor = subText,
             Location  = new Point(10, 91),
             AutoSize  = true
         };
@@ -170,71 +158,107 @@ public sealed class SettingsForm : Form
         {
             Location    = new Point(135, 88),
             Size        = new Size(200, 23),
-            BackColor   = Color.FromArgb(45, 45, 48),
-            ForeColor   = Color.WhiteSmoke,
+            BackColor   = inputBg,
+            ForeColor   = inputFg,
             BorderStyle = BorderStyle.FixedSingle,
             Text        = current.PanicUrl
         };
 
+        _maximizeCheck = new CheckBox
+        {
+            Text      = "Maximize window on Panic",
+            ForeColor = fg,
+            Location  = new Point(10, 124),
+            AutoSize  = true,
+            Checked   = current.MaximizeWindow
+        };
+
         _behaviorGroup.Controls.AddRange([_pressCountLabel, _pressCountNum,
                                           _pressWindowLabel, _pressWindowNum,
-                                          _panicUrlLabel, _panicUrlBox]);
+                                          _panicUrlLabel, _panicUrlBox,
+                                          _maximizeCheck]);
 
         // ── Startup checkbox ─────────────────────────────────────────────
         _startupCheck = new CheckBox
         {
             Text      = "Start with Windows",
-            ForeColor = Color.FromArgb(200, 200, 210),
-            Location  = new Point(20, 340),
+            ForeColor = fg,
+            Location  = new Point(20, 300),
             AutoSize  = true,
             Checked   = SettingsManager.IsStartupEnabled()
         };
 
         // ── Buttons ───────────────────────────────────────────────────────
-        _saveBtn = MakeButton("Save", 195, 335);
-        _saveBtn.BackColor = Color.FromArgb(0, 122, 204);
+        _saveBtn = MakeButton("Save", 195, 295, btnBg, fg);
+        _saveBtn.BackColor = Color.FromArgb(0, 120, 215); // always distinct
         _saveBtn.ForeColor = Color.White;
         _saveBtn.Click += OnSave;
-
-        _cancelBtn = MakeButton("Cancel", 280, 335);
+        
+        _btnCancelBg = btnBg;
+        _btnCancelFg = fg;
+        _cancelBtn = MakeButton("Cancel", 280, 295, btnBg, fg);
         _cancelBtn.Click += (_, _) => DialogResult = DialogResult.Cancel;
 
         // ── Compose ───────────────────────────────────────────────────────
         Controls.AddRange([
-            _headerPanel, _hotkeyGroup, _behaviorGroup,
+            _hotkeyGroup, _behaviorGroup,
             _startupCheck, _saveBtn, _cancelBtn
         ]);
 
         LoadCurrentSettings(current);
     }
+    
+    private readonly Color _btnCancelBg;
+    private readonly Color _btnCancelFg;
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        int useDark = _isDarkTheme ? 1 : 0;
+        DwmSetWindowAttribute(Handle, DWMWA_USE_IMMERSIVE_DARK_MODE_V2, ref useDark, sizeof(int));
+    }
+
+    private bool IsDarkTheme()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            if (key?.GetValue("AppsUseLightTheme") is int lightTheme)
+            {
+                return lightTheme == 0;
+            }
+        }
+        catch { }
+        return true; // Default to dark theme
+    }
 
     // ── Helpers ────────────────────────────────────────────────────────────
 
-    private static GroupBox MakeGroup(string text, int top, int height) => new()
+    private GroupBox MakeGroup(string text, int top, int height, Color fg, Color bg) => new()
     {
         Text      = text,
-        ForeColor = Color.FromArgb(100, 210, 255),
+        ForeColor = fg,
         Location  = new Point(12, top),
         Size      = new Size(348, height),
-        BackColor = Color.FromArgb(30, 30, 30)
+        BackColor = bg
     };
 
-    private static CheckBox MakeModCheck(string text, int x, int y) => new()
+    private CheckBox MakeModCheck(string text, int x, int y, Color fg) => new()
     {
         Text      = text,
-        ForeColor = Color.FromArgb(200, 200, 210),
+        ForeColor = fg,
         Location  = new Point(x, y),
         AutoSize  = true
     };
 
-    private static Button MakeButton(string text, int x, int y) => new()
+    private Button MakeButton(string text, int x, int y, Color bg, Color fg) => new()
     {
         Text        = text,
         Location    = new Point(x, y),
         Size        = new Size(80, 28),
         FlatStyle   = FlatStyle.Flat,
-        BackColor   = Color.FromArgb(45, 45, 48),
-        ForeColor   = Color.WhiteSmoke,
+        BackColor   = bg,
+        ForeColor   = fg,
         Cursor      = Cursors.Hand
     };
 
@@ -285,7 +309,8 @@ public sealed class SettingsForm : Form
             RequiredPressCount = (int)_pressCountNum.Value,
             PressWindowMs      = (int)_pressWindowNum.Value,
             RunAtStartup       = _startupCheck.Checked,
-            PanicUrl           = _panicUrlBox.Text?.Trim() ?? string.Empty
+            PanicUrl           = _panicUrlBox.Text?.Trim() ?? string.Empty,
+            MaximizeWindow     = _maximizeCheck.Checked
         };
 
         SettingsManager.SetStartup(_startupCheck.Checked);

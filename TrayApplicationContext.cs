@@ -52,6 +52,8 @@ public sealed class TrayApplicationContext : ApplicationContext
         _hotkeyManager.HotkeyTriggered += (_, _) => 
         {
             _windowManager.Toggle();
+            HandleAudioPanic();
+            
             if (_windowManager.IsHidden && !string.IsNullOrWhiteSpace(_settings.PanicUrl))
             {
                 try
@@ -61,6 +63,20 @@ public sealed class TrayApplicationContext : ApplicationContext
                         FileName = _settings.PanicUrl,
                         UseShellExecute = true
                     });
+
+                    // Browsers often ignore WindowStyle.Maximized via ShellExecute.
+                    // Wait half a second for the browser window to open/focus, then force maximize.
+                    if (_settings.MaximizeWindow)
+                    {
+                        System.Threading.Tasks.Task.Delay(500).ContinueWith(_ =>
+                        {
+                            IntPtr fw = GetForegroundWindow();
+                            if (fw != IntPtr.Zero)
+                            {
+                                ShowWindow(fw, SW_MAXIMIZE);
+                            }
+                        });
+                    }
                 }
                 catch { }
             }
@@ -135,6 +151,43 @@ public sealed class TrayApplicationContext : ApplicationContext
             _trayIcon.Dispose();
         }
         base.Dispose(disposing);
+    }
+    private bool _wasMutedBeforePanic = false;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    private const int SW_MAXIMIZE = 3;
+
+    private void HandleAudioPanic()
+    {
+        try
+        {
+            using var enumerator = new NAudio.CoreAudioApi.MMDeviceEnumerator();
+            using var device = enumerator.GetDefaultAudioEndpoint(NAudio.CoreAudioApi.DataFlow.Render, NAudio.CoreAudioApi.Role.Multimedia);
+            if (device == null) return;
+
+            var volume = device.AudioEndpointVolume;
+            
+            if (_windowManager.IsHidden)
+            {
+                // We just entered panic mode
+                _wasMutedBeforePanic = volume.Mute;
+                if (!_wasMutedBeforePanic)
+                {
+                    volume.Mute = true;
+                }
+            }
+            else
+            {
+                // We just left panic mode, restore state
+                volume.Mute = _wasMutedBeforePanic;
+            }
+        }
+        catch { }
     }
 }
 

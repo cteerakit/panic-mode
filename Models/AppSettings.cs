@@ -19,4 +19,7 @@ public class AppSettings
 
     /// <summary>Optional URL to open when panic mode is activated.</summary>
     public string PanicUrl { get; set; } = "https://google.com";
+
+    /// <summary>Whether to maximize the window when panic mode is activated.</summary>
+    public bool MaximizeWindow { get; set; } = true;
 }

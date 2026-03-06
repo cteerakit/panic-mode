@@ -32,7 +32,7 @@ Name: "startupentry"; Description: "Start PanicMode automatically when Windows s
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional icons:"; Flags: unchecked
 
 [Files]
-Source: "{#MyAppExePath}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "bin\Release\net10.0-windows\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
